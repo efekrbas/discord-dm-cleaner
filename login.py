@@ -19,7 +19,7 @@ class TokenLoaderThread(QThread):
 class TokenListDialog(QDialog):
     def __init__(self, parent=None, tokens=None):
         super().__init__(parent)
-        self.setWindowTitle("Aktif Tokenler")
+        self.setWindowTitle("Active Tokens")
         self.setFixedSize(350, 400)
         self.setStyleSheet('''
             QDialog {
@@ -39,7 +39,7 @@ class TokenListDialog(QDialog):
         layout.addWidget(self.list_widget)
         self.tokens = tokens or []
         if not self.tokens:
-            self.list_widget.addItem(QListWidgetItem("Bilgisayarda aktif token bulunamadı."))
+            self.list_widget.addItem(QListWidgetItem("No active token found on computer."))
         else:
             self.populate_tokens()
 
@@ -121,7 +121,7 @@ class TokenListDialog(QDialog):
 class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Token ile Giriş Yap")
+        self.setWindowTitle("Login with Token")
         self.setFixedSize(400, 370)
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -212,7 +212,7 @@ class LoginWindow(QWidget):
         inner_layout.setContentsMargins(20, 18, 20, 20)
 
         self.token_input = QLineEdit()
-        self.token_input.setPlaceholderText("Token giriniz...")
+        self.token_input.setPlaceholderText("Enter token...")
         self.token_input.setStyleSheet('''
             QLineEdit {
                 background: transparent;
@@ -234,7 +234,7 @@ class LoginWindow(QWidget):
         ''')
         inner_layout.addWidget(self.token_input)
 
-        self.login_btn = QPushButton("Giriş Yap")
+        self.login_btn = QPushButton("Login")
         self.login_btn.clicked.connect(self.login)
         self.login_btn.setStyleSheet('''
             QPushButton {
@@ -255,7 +255,7 @@ class LoginWindow(QWidget):
         ''')
         inner_layout.addWidget(self.login_btn)
 
-        self.tokens_btn = QPushButton("Aktif Tokenler")
+        self.tokens_btn = QPushButton("Active Tokens")
         self.tokens_btn.setCheckable(True)
         self.tokens_btn.clicked.connect(self.toggle_tokens_section)
         self.tokens_btn.setStyleSheet('''
@@ -360,7 +360,7 @@ class LoginWindow(QWidget):
 
     def load_tokens_async(self):
         self.tokens_list.clear()
-        self.tokens_list.addItem(QListWidgetItem("Tokenler yükleniyor..."))
+        self.tokens_list.addItem(QListWidgetItem("Loading tokens..."))
         self.tokens_loaded = False
         self.tokens = []
         self.token_loader = TokenLoaderThread()
@@ -391,7 +391,7 @@ class LoginWindow(QWidget):
             visible_count = min(len(items), max_visible)
             self.tokens_section.setFixedHeight(visible_count * row_height + 24)
         else:
-            self.tokens_list.addItem(QListWidgetItem("Bilgisayarda aktif token bulunamadı."))
+            self.tokens_list.addItem(QListWidgetItem("No active token found on computer."))
             self.tokens_section.setFixedHeight(48)
 
     def update_token_selection_effects(self):

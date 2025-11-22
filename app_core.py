@@ -104,11 +104,11 @@ class DiscordWorker(QThread):
                     
                     channels = await resp.json()
                     
-                    # Tüm DM türlerini dahil et: birebir DM'ler, grup sohbetleri ve diğer özel kanallar
+                    # Include all DM types: one-on-one DMs, group chats and other private channels
                     dm_channels = []
                     for channel in channels:
                         channel_type = channel.get("type", 0)
-                        # Type 1: Birebir DM, Type 3: Grup DM, Type 0: Text channel (bazı özel durumlar için)
+                        # Type 1: One-on-one DM, Type 3: Group DM, Type 0: Text channel (for some special cases)
                         if channel_type in [1, 3] or (channel_type == 0 and "recipients" in channel):
                             dm_channels.append(channel)
                     
@@ -118,47 +118,47 @@ class DiscordWorker(QThread):
                     for idx, channel in enumerate(dm_channels, 1):
                         self.dm_loading_progress.emit(idx, total_channels)
                         
-                        # Kanal tipine göre kullanıcı adını belirle
+                        # Determine username based on channel type
                         username = None
                         user_id = None
                         avatar_id = None
                         
-                        if channel["type"] == 1:  # Birebir DM
+                        if channel["type"] == 1:  # One-on-one DM
                             if "recipients" in channel and len(channel["recipients"]) > 0:
                                 recipient = channel["recipients"][0]
-                                # Önce global_name'i kontrol et, yoksa username kullan
-                                username = recipient.get('global_name') or recipient.get('username', 'Bilinmeyen Kullanıcı')
+                                # Check global_name first, use username if not available
+                                username = recipient.get('global_name') or recipient.get('username', 'Unknown User')
                                 user_id = recipient.get("id")
                                 avatar_id = recipient.get("avatar")
-                        elif channel["type"] == 3:  # Grup sohbeti
-                            # Grup sohbeti için name alanını kontrol et
+                        elif channel["type"] == 3:  # Group chat
+                            # Check name field for group chat
                             username = channel.get("name")
                             if not username:
-                                # Eğer name yoksa, recipients'dan grup adını oluştur
+                                # If name doesn't exist, create group name from recipients
                                 if "recipients" in channel and len(channel["recipients"]) > 0:
-                                    recipient_names = [r.get('global_name') or r.get('username', 'Bilinmeyen') for r in channel["recipients"][:3]]
-                                    username = f"Grup: {', '.join(recipient_names)}"
+                                    recipient_names = [r.get('global_name') or r.get('username', 'Unknown') for r in channel["recipients"][:3]]
+                                    username = f"Group: {', '.join(recipient_names)}"
                                     if len(channel["recipients"]) > 3:
-                                        username += f" +{len(channel['recipients']) - 3} kişi"
+                                        username += f" +{len(channel['recipients']) - 3} more"
                                 else:
-                                    username = "Bilinmeyen Grup"
+                                    username = "Unknown Group"
                             user_id = None
                             avatar_id = channel.get("icon")
-                        elif channel["type"] == 0 and "recipients" in channel:  # Özel DM kanalı
+                        elif channel["type"] == 0 and "recipients" in channel:  # Private DM channel
                             if len(channel["recipients"]) == 1:
                                 recipient = channel["recipients"][0]
-                                # Önce global_name'i kontrol et, yoksa username kullan
-                                username = recipient.get('global_name') or recipient.get('username', 'Bilinmeyen Kullanıcı')
+                                # Check global_name first, use username if not available
+                                username = recipient.get('global_name') or recipient.get('username', 'Unknown User')
                                 user_id = recipient.get("id")
                                 avatar_id = recipient.get("avatar")
                             else:
-                                username = channel.get("name", "Grup Sohbeti")
+                                username = channel.get("name", "Group Chat")
                                 user_id = None
                                 avatar_id = channel.get("icon")
                         
-                        # Username None ise varsayılan değer ata
+                        # Assign default value if username is None
                         if username is None:
-                            username = "Bilinmeyen Kanal"
+                            username = "Unknown Channel"
                         
                         avatar_task = asyncio.create_task(
                             self.get_avatar(user_id, avatar_id) if user_id and avatar_id else asyncio.sleep(0)
@@ -186,7 +186,7 @@ class DiscordWorker(QThread):
                     self.dm_list_ready.emit(sorted_dm_list)
                     
             except Exception as e:
-                self.error_occurred.emit(f"DM listesi alınırken hata: {str(e)}")
+                self.error_occurred.emit(f"Error occurred while getting DM list: {str(e)}")
             finally:
                 self._session = None
 
@@ -203,30 +203,30 @@ class DiscordWorker(QThread):
                     return True
                 elif resp.status == 429:
                     retry_after = float((await resp.json()).get('retry_after', 1))
-                    self.message_deleted.emit(f"Rate limit aşıldı, {retry_after:.1f} saniye bekleniyor...")
+                    self.message_deleted.emit(f"Rate limit exceeded, waiting {retry_after:.1f} seconds...")
                     await asyncio.sleep(retry_after + 1.1)
                     return await self.delete_message(session, channel_id, message_id, is_call_message)
                 elif resp.status == 403:
                     if not is_call_message:
-                        self.message_deleted.emit(f"Mesaj silinemedi: Yetki yok (403) - Mesaj ID: {message_id}")
+                        self.message_deleted.emit(f"Message could not be deleted: No permission (403) - Message ID: {message_id}")
                     return False
                 elif resp.status == 404:
                     if not is_call_message:
-                        self.message_deleted.emit(f"Mesaj bulunamadı (404) - Mesaj ID: {message_id}")
+                        self.message_deleted.emit(f"Message not found (404) - Message ID: {message_id}")
                     return False
                 elif resp.status == 400:
                     if not is_call_message:
                         error_text = await resp.text()
-                        self.message_deleted.emit(f"Geçersiz istek (400) - Mesaj ID: {message_id} - Hata: {error_text}")
+                        self.message_deleted.emit(f"Invalid request (400) - Message ID: {message_id} - Error: {error_text}")
                     return False
                 else:
                     if not is_call_message:
                         error_text = await resp.text()
-                        self.message_deleted.emit(f"Mesaj silinemedi: HTTP {resp.status} - Mesaj ID: {message_id} - Hata: {error_text}")
+                        self.message_deleted.emit(f"Message could not be deleted: HTTP {resp.status} - Message ID: {message_id} - Error: {error_text}")
                     return False
         except Exception as e:
             if not is_call_message:
-                self.message_deleted.emit(f"Mesaj silinirken hata oluştu: {str(e)} - Mesaj ID: {message_id}")
+                self.message_deleted.emit(f"Error occurred while deleting message: {str(e)} - Message ID: {message_id}")
             return False
 
     async def delete_all_dms(self):
@@ -239,12 +239,12 @@ class DiscordWorker(QThread):
             try:
                 async with session.get("https://discord.com/api/v9/users/@me/channels", headers=headers) as resp:
                     if resp.status != 200:
-                        self.error_occurred.emit(f"DM listesi alınamadı: HTTP {resp.status}")
+                        self.error_occurred.emit(f"Could not get DM list: HTTP {resp.status}")
                         return
                     
                     channels = await resp.json()
                     
-                    # Tüm DM türlerini dahil et
+                    # Include all DM types
                     dm_channels = []
                     for channel in channels:
                         channel_type = channel.get("type", 0)
@@ -252,60 +252,60 @@ class DiscordWorker(QThread):
                             dm_channels.append(channel)
                     
                     self.total_dm_count = len(dm_channels)
-                    self.message_deleted.emit(f"Toplam {self.total_dm_count} DM kutusu bulundu. Silme işlemi başlıyor...")
+                    self.message_deleted.emit(f"Found {self.total_dm_count} DM boxes. Deletion process starting...")
                     
                     for i, channel in enumerate(dm_channels, 1):
                         if not self._is_running:
                             self.message_deleted.emit(
-                                f"İşlem durduruldu!\n"
-                                f"Son işlem: {self.current_username} ile olan DM'de kaldınız.\n"
-                                f"Toplam {self.completed_dms}/{self.total_dm_count} DM kutusu temizlendi.\n"
-                                f"Toplam {self.total_deleted} mesaj silindi."
+                                f"Process stopped!\n"
+                                f"Last operation: Stopped at DM with {self.current_username}.\n"
+                                f"Total {self.completed_dms}/{self.total_dm_count} DM boxes cleaned.\n"
+                                f"Total {self.total_deleted} messages deleted."
                             )
                             self.finished_deletion.emit()
                             return
                         
-                        # Kanal tipine göre kullanıcı adını belirle
-                        if channel["type"] == 1:  # Birebir DM
+                        # Determine username based on channel type
+                        if channel["type"] == 1:  # One-on-one DM
                             if "recipients" in channel and len(channel["recipients"]) > 0:
                                 recipient = channel["recipients"][0]
-                                self.current_username = recipient.get('global_name') or recipient.get("username", "Bilinmeyen Kullanıcı")
+                                self.current_username = recipient.get('global_name') or recipient.get("username", "Unknown User")
                             else:
-                                self.current_username = "Bilinmeyen Kullanıcı"
-                        elif channel["type"] == 3:  # Grup sohbeti
-                            self.current_username = channel.get("name", "Bilinmeyen Grup")
-                        elif channel["type"] == 0 and "recipients" in channel:  # Özel DM kanalı
+                                self.current_username = "Unknown User"
+                        elif channel["type"] == 3:  # Group chat
+                            self.current_username = channel.get("name", "Unknown Group")
+                        elif channel["type"] == 0 and "recipients" in channel:  # Private DM channel
                             if len(channel["recipients"]) == 1:
                                 recipient = channel["recipients"][0]
-                                self.current_username = recipient.get('global_name') or recipient.get("username", "Bilinmeyen Kullanıcı")
+                                self.current_username = recipient.get('global_name') or recipient.get("username", "Unknown User")
                             else:
-                                self.current_username = channel.get("name", "Grup Sohbeti")
+                                self.current_username = channel.get("name", "Group Chat")
                         else:
-                            self.current_username = "Bilinmeyen Kanal"
+                            self.current_username = "Unknown Channel"
                         
                         self.current_dm_index = i
-                        self.message_deleted.emit(f"DM Kutusu {i}/{self.total_dm_count} - {self.current_username} ile olan mesajlar siliniyor...")
+                        self.message_deleted.emit(f"DM Box {i}/{self.total_dm_count} - Deleting messages with {self.current_username}...")
                         
-                        # Bu DM'deki mesaj sayısını kaydet
+                        # Save message count in this DM
                         messages_before = self.deleted_count
                         await self.delete_messages(channel["id"])
                         messages_deleted_in_this_dm = self.deleted_count - messages_before
                         self.completed_dms += 1
-                        self.message_deleted.emit(f"✓ {self.current_username} ile olan {messages_deleted_in_this_dm} mesaj silindi.")
+                        self.message_deleted.emit(f"✓ {messages_deleted_in_this_dm} messages deleted with {self.current_username}.")
                         
                         if not self._is_running:
                             break
                     
                     self.message_deleted.emit(
-                        f"🎉 Tüm DM'ler temizlendi!\n"
-                        f"✓ İşlenen DM kutusu: {self.completed_dms}/{self.total_dm_count}\n"
-                        f"✓ Toplam silinen mesaj: {self.total_deleted}\n"
-                        f"✓ İşlem başarıyla tamamlandı!"
+                        f"🎉 All DMs cleaned!\n"
+                        f"✓ Processed DM boxes: {self.completed_dms}/{self.total_dm_count}\n"
+                        f"✓ Total deleted messages: {self.total_deleted}\n"
+                        f"✓ Process completed successfully!"
                     )
                     self.finished_deletion.emit()
                     
             except Exception as e:
-                self.error_occurred.emit(f"DM silme işleminde hata: {str(e)}")
+                self.error_occurred.emit(f"Error in DM deletion process: {str(e)}")
                 self.finished_deletion.emit()
 
     async def delete_messages(self, channel_id):
@@ -317,7 +317,7 @@ class DiscordWorker(QThread):
         async with aiohttp.ClientSession() as session:
             async with session.get("https://discord.com/api/v9/users/@me", headers=headers) as resp:
                 if resp.status != 200:
-                    self.error_occurred.emit("Kullanıcı bilgileri alınamadı")
+                    self.error_occurred.emit("Could not get user information")
                     self.finished_deletion.emit()
                     return
                 user_data = await resp.json()
@@ -334,90 +334,90 @@ class DiscordWorker(QThread):
                 try:
                     async with session.get(url, headers=headers) as resp:
                         if resp.status != 200:
-                            self.message_deleted.emit(f"Mesajlar alınamadı: HTTP {resp.status}")
+                            self.message_deleted.emit(f"Could not get messages: HTTP {resp.status}")
                             break
                         
                         messages = await resp.json()
                         if not messages:
-                            self.message_deleted.emit("Bu DM'de daha fazla mesaj bulunamadı.")
+                            self.message_deleted.emit("No more messages found in this DM.")
                             break
                         
-                        # Toplam mesaj sayısını hesapla
+                        # Calculate total message count
                         total_messages = len([m for m in messages if m["author"]["id"] == user_id])
                         current_progress = 0
                         
                         for msg in messages:
                             if not self._is_running:
-                                self.message_deleted.emit(f"İşlem durduruldu! Toplam {self.deleted_count} mesaj silindi.")
+                                self.message_deleted.emit(f"Process stopped! Total {self.deleted_count} messages deleted.")
                                 self.finished_deletion.emit()
                                 return
                                 
                             last_message_id = msg["id"]
                             if msg["author"]["id"] == user_id:
-                                # Mesaj türünü kontrol et
+                                # Check message type
                                 content = msg.get("content", "")
                                 message_type = msg.get("type", 0)
                                 
-                                # Arama mesajlarını kontrol et
+                                # Check for call messages
                                 is_call_message = any(keyword in content.lower() for keyword in [
-                                    "arama başlattı", "cevapsız arama", "süren bir arama", 
-                                    "kullanıcısından gelen", "arama", "call"
+                                    "started a call", "missed call", "ongoing call", 
+                                    "incoming call from", "call", "call"
                                 ])
                                 
-                                # Anket mesajlarını kontrol et (kapsamlı)
+                                # Check for poll messages (comprehensive)
                                 is_poll_message = (
-                                    # Embed içeren mesajlar
+                                    # Messages containing embeds
                                     (msg.get("embeds") and len(msg.get("embeds", [])) > 0) or
-                                    # Anket metinleri içeren mesajlar
-                                    ("Bir yanıt seç" in content or 
-                                     "Sonuçları göster" in content or
-                                     "Oyla" in content or
-                                     "oy" in content.lower() or
-                                     "kaldı" in content.lower()) or
-                                    # Mesaj türü 0 olmayan ama silinebilir mesajlar
+                                    # Messages containing poll texts
+                                    ("Select a response" in content or 
+                                     "Show results" in content or
+                                     "Vote" in content or
+                                     "vote" in content.lower() or
+                                     "left" in content.lower()) or
+                                    # Messages that are not type 0 but are deletable
                                     (message_type == 0 and not content.strip() and not msg.get("attachments") and not msg.get("sticker_items"))
                                 )
                                 
-                                # Sistem mesajlarını kontrol et
+                                # Check for system messages
                                 is_system_message = (
-                                    message_type != 0 or  # Normal mesaj değil
-                                    (not content.strip() and not msg.get("attachments") and not msg.get("embeds") and not msg.get("sticker_items")) or  # Boş içerik, dosya, embed ve sticker yok
-                                    msg.get("activity") or  # Aktivite var
-                                    msg.get("application") or  # Uygulama mesajı
-                                    is_call_message  # Arama mesajı
+                                    message_type != 0 or  # Not a normal message
+                                    (not content.strip() and not msg.get("attachments") and not msg.get("embeds") and not msg.get("sticker_items")) or  # Empty content, no file, embed or sticker
+                                    msg.get("activity") or  # Has activity
+                                    msg.get("application") or  # Application message
+                                    is_call_message  # Call message
                                 )
                                 
-                                # Anket mesajları silinebilir
+                                # Poll messages are deletable
                                 if is_poll_message:
                                     is_system_message = False
                                 
                                 if is_system_message:
-                                    # Sistem mesajlarını sessizce atla
+                                    # Silently skip system messages
                                     current_progress += 1
                                     self.progress_update.emit(current_progress, total_messages)
                                     continue
                                 
-                                # Normal mesajları sil
+                                # Delete normal messages
                                 success = await self.delete_message(session, channel_id, msg["id"], False)
                                 if success:
                                     self.deleted_count += 1
                                     self.total_deleted += 1
                                     current_progress += 1
-                                    self.message_deleted.emit(f"✓ Silinen mesaj: {msg['content'][:50]}...")
+                                    self.message_deleted.emit(f"✓ Deleted message: {msg['content'][:50]}...")
                                     self.progress_update.emit(current_progress, total_messages)
                                 else:
-                                    # Mesaj silinemedi, hata mesajı zaten delete_message'da gönderildi
-                                    self.message_deleted.emit(f"✗ Silinemedi: {msg['content'][:50]}...")
+                                    # Message could not be deleted, error message already sent in delete_message
+                                    self.message_deleted.emit(f"✗ Could not delete: {msg['content'][:50]}...")
                                     current_progress += 1
                                     self.progress_update.emit(current_progress, total_messages)
                                 await asyncio.sleep(1.3)
                 
                 except Exception as e:
-                    self.error_occurred.emit(f"Mesaj silinirken hata: {str(e)}")
+                    self.error_occurred.emit(f"Error while deleting message: {str(e)}")
                     await asyncio.sleep(1.5)
 
             if not self.delete_all:
-                self.message_deleted.emit(f"DM silme işlemi tamamlandı!\n✓ Başarıyla silinen: {self.deleted_count} mesaj")
+                self.message_deleted.emit(f"DM deletion process completed!\n✓ Successfully deleted: {self.deleted_count} messages")
                 self.finished_deletion.emit()
 
     async def main(self):
@@ -535,10 +535,10 @@ class DiscordMessageManager(QMainWindow):
         button_layout = QHBoxLayout(button_frame)
         button_layout.setSpacing(10)
         button_layout.setContentsMargins(10, 10, 10, 10)
-        self.delete_selected_btn = ModernButton("Sil", QStyle.StandardPixmap.SP_DialogOkButton)
-        self.delete_all_btn = ModernButton("Tüm DM'leri Sil", QStyle.StandardPixmap.SP_DialogYesButton)
-        self.refresh_btn = ModernButton("Yenile", QStyle.StandardPixmap.SP_BrowserReload)
-        self.stop_btn = ModernButton("Durdur", QStyle.StandardPixmap.SP_DialogCancelButton)
+        self.delete_selected_btn = ModernButton("Delete", QStyle.StandardPixmap.SP_DialogOkButton)
+        self.delete_all_btn = ModernButton("Delete All DMs", QStyle.StandardPixmap.SP_DialogYesButton)
+        self.refresh_btn = ModernButton("Refresh", QStyle.StandardPixmap.SP_BrowserReload)
+        self.stop_btn = ModernButton("Stop", QStyle.StandardPixmap.SP_DialogCancelButton)
         for btn in [self.delete_selected_btn, self.delete_all_btn, self.refresh_btn, self.stop_btn]:
             btn.setFixedHeight(40)
             btn.setFont(QFont("Arial", 10, QFont.Weight.Bold))
@@ -599,11 +599,11 @@ class DiscordMessageManager(QMainWindow):
 
     def load_dm_list(self):
         if not self.token:
-            self.show_error("Token bulunamadı!")
+            self.show_error("Token not found!")
             return
         
-        # Discord activity'yi güncelle
-        self.update_discord_activity("DM Cleaner Açık", "DM listesi yükleniyor...")
+        # Update Discord activity
+        self.update_discord_activity("DM Cleaner Open", "Loading DM list...")
         
         self.dm_list.clear()
         self.log_list.clear()
@@ -636,8 +636,8 @@ class DiscordMessageManager(QMainWindow):
             self.dm_list.addItem(item)
             self.dm_list.setItemWidget(item, user_widget)
         
-        # Discord activity'yi güncelle - DM listesi yüklendi
-        self.update_discord_activity("DM Cleaner Açık", f"{len(dm_list)} DM bulundu - Hazır")
+        # Update Discord activity - DM list loaded
+        self.update_discord_activity("DM Cleaner Open", f"{len(dm_list)} DMs found - Ready")
 
     def filter_dm_list(self, search_text):
         search_text = search_text.lower()
@@ -654,49 +654,49 @@ class DiscordMessageManager(QMainWindow):
         current_item = self.dm_list.currentItem()
         if not current_item:
             dialog = ModernMessageBox(self)
-            dialog.setWindowTitle("Uyarı")
-            dialog.setText("Lütfen bir DM seçin!")
+            dialog.setWindowTitle("Warning")
+            dialog.setText("Please select a DM!")
             dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
-            dialog.button(QMessageBox.StandardButton.Ok).setText("Tamam")
+            dialog.button(QMessageBox.StandardButton.Ok).setText("OK")
             dialog.exec()
             return
         widget = self.dm_list.itemWidget(current_item)
         if not widget:
             dialog = ModernMessageBox(self)
-            dialog.setWindowTitle("Uyarı")
-            dialog.setText("Seçili kullanıcı bulunamadı!")
+            dialog.setWindowTitle("Warning")
+            dialog.setText("Selected user not found!")
             dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
-            dialog.button(QMessageBox.StandardButton.Ok).setText("Tamam")
+            dialog.button(QMessageBox.StandardButton.Ok).setText("OK")
             dialog.exec()
             return
-        # Benzersiz key'i item'dan al
+        # Get unique key from item
         unique_key = current_item.data(Qt.ItemDataRole.UserRole)
         if not unique_key or unique_key not in self.dm_channels:
             dialog = ModernMessageBox(self)
-            dialog.setWindowTitle("Uyarı")
-            dialog.setText("Seçili kullanıcının DM kanalı bulunamadı!")
+            dialog.setWindowTitle("Warning")
+            dialog.setText("Selected user's DM channel not found!")
             dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
-            dialog.button(QMessageBox.StandardButton.Ok).setText("Tamam")
+            dialog.button(QMessageBox.StandardButton.Ok).setText("OK")
             dialog.exec()
             return
         channel_id = self.dm_channels[unique_key]
         username = widget.username_label.text()
-        reply = show_confirmation_dialog(self, "Onay", f"{username} ile olan tüm mesajlarınız silinecek. Emin misiniz?")
+        reply = show_confirmation_dialog(self, "Confirmation", f"All your messages with {username} will be deleted. Are you sure?")
         if reply == QMessageBox.StandardButton.Yes:
-            # Discord activity'yi güncelle
-            self.update_discord_activity("DM Temizleniyor", f"{username} ile olan mesajlar siliniyor...")
-            self.log_message("Bekleyin, işlem başlatılıyor...")
+            # Update Discord activity
+            self.update_discord_activity("Cleaning DM", f"Deleting messages with {username}...")
+            self.log_message("Please wait, starting process...")
             self.start_deletion(channel_id)
 
     def delete_all_messages(self):
         if not self.token:
-            self.show_error("Token bulunamadı! Lütfen Discord'u yeniden başlatın.")
+            self.show_error("Token not found! Please restart Discord.")
             return
-        reply = show_confirmation_dialog(self, "Onay", "Tüm DM'lerdeki mesajlarınız silinecek. Emin misiniz?")
+        reply = show_confirmation_dialog(self, "Confirmation", "All your messages in all DMs will be deleted. Are you sure?")
         if reply == QMessageBox.StandardButton.Yes:
-            # Discord activity'yi güncelle
-            self.update_discord_activity("Tüm DM'ler Temizleniyor", "Tüm mesajlar siliniyor...")
-            self.log_message("Bekleyin, işlem başlatılıyor...")
+            # Update Discord activity
+            self.update_discord_activity("Cleaning All DMs", "Deleting all messages...")
+            self.log_message("Please wait, starting process...")
             self.start_deletion(None, delete_all=True)
 
     def start_deletion(self, channel_id=None, delete_all=False):
@@ -725,16 +725,16 @@ class DiscordMessageManager(QMainWindow):
 
     def show_error(self, error_message):
         dialog = ModernMessageBox(self)
-        dialog.setWindowTitle("Hata")
+        dialog.setWindowTitle("Error")
         dialog.setText(error_message)
         dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
-        dialog.button(QMessageBox.StandardButton.Ok).setText("Tamam")
+        dialog.button(QMessageBox.StandardButton.Ok).setText("OK")
         dialog.exec()
 
     def update_loading_progress(self, current, total):
-        self.loading_label.setText(f"DM'ler yükleniyor... ({current}/{total})")
+        self.loading_label.setText(f"Loading DMs... ({current}/{total})")
         if current == total:
-            self.loading_label.setText("DM'ler yüklendi!")
+            self.loading_label.setText("DMs loaded!")
             QTimer.singleShot(2000, lambda: self.loading_label.setText(""))
 
     def on_token_ready(self, token):
@@ -747,7 +747,7 @@ class DiscordMessageManager(QMainWindow):
         self.delete_all_btn.setEnabled(True)
         self.refresh_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
-        # Discord activity'yi temizle
+        # Clear Discord activity
         self.clear_discord_activity()
     
     def update_discord_activity(self, details, state):
@@ -1170,7 +1170,7 @@ class ModernSearchBox(QLineEdit):
                 color: rgba(255, 255, 255, 0.3);
             }
         """)
-        self.setPlaceholderText("Kullanıcı ara...")
+        self.setPlaceholderText("Search user...")
         self.search_icon = QLabel(self)
         self.search_icon.setStyleSheet("""
             QLabel {
@@ -1212,10 +1212,10 @@ class ModernMessageBox(QMessageBox):
             QPushButton:pressed {
                 background-color: #4A5F9E;
             }
-            QPushButton[text="Hayır"] {
+            QPushButton[text="No"] {
                 background-color: #d83c3e;
             }
-            QPushButton[text="Hayır"]:hover {
+            QPushButton[text="No"]:hover {
                 background-color: #b33436;
             }
         """) 
@@ -1225,6 +1225,6 @@ def show_confirmation_dialog(parent, title, message):
     dialog.setWindowTitle(title)
     dialog.setText(message)
     dialog.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-    dialog.button(QMessageBox.StandardButton.Yes).setText("Evet")
-    dialog.button(QMessageBox.StandardButton.No).setText("Hayır")
+    dialog.button(QMessageBox.StandardButton.Yes).setText("Yes")
+    dialog.button(QMessageBox.StandardButton.No).setText("No")
     return dialog.exec() 
