@@ -1,79 +1,78 @@
-# DM Cleaner - EXE Build Rehberi
+# DM Cleaner - EXE Build Guide
 
-Bu rehber DM Cleaner projesini exe dosyasına çevirmek için kullanılır.
+This guide is used to convert the DM Cleaner project into an exe file.
 
-## 🚀 Hızlı Başlangıç
+## 🚀 Quick Start
 
-### Yöntem 1: Basit Build (Önerilen)
+### Method 1: Simple Build (Recommended)
 ```bash
 build_simple.bat
 ```
-Bu dosyayı çift tıklayın ve işlem otomatik olarak tamamlanacak.
+Double-click this file and the process will complete automatically.
 
-### Yöntem 2: Gelişmiş Build
+### Method 2: Advanced Build
 ```bash
 python build_advanced.py
 ```
-Bu script daha detaylı bilgi verir ve hata kontrolü yapar.
+This script provides more detailed information and performs error checking.
 
-### Yöntem 3: Manuel Build
+### Method 3: Manual Build
 ```bash
 pip install pyinstaller
 pyinstaller --onefile --windowed --icon=nike.ico --name="DM Cleaner" main.pyw
 ```
 
-## 📋 Gereksinimler
+## 📋 Requirements
 
 - Python 3.8+
 - Windows 10/11
-- İnternet bağlantısı (paket kurulumu için)
+- Internet connection (for package installation)
 
-## 📁 Dosya Yapısı
+## 📁 File Structure
 
 ```
 dm-cleaner/
-├── main.pyw              # Ana uygulama dosyası
-├── app_core.py           # Uygulama çekirdeği
-├── nike.ico              # Uygulama ikonu
-├── requirements.txt      # Python paketleri
-├── build_simple.bat      # Basit build script
-├── build_advanced.py     # Gelişmiş build script
-├── dm_cleaner.spec       # PyInstaller konfigürasyonu
-└── BUILD_README.md       # Bu dosya
+├── main.pyw              # Main application file
+├── app_core.py           # Application core
+├── nike.ico              # Application icon
+├── requirements.txt      # Python packages
+├── build_simple.bat      # Simple build script
+├── build_advanced.py     # Advanced build script
+├── dm_cleaner.spec       # PyInstaller configuration
+└── BUILD_README.md       # This file
 ```
 
-## 🔧 Build Parametreleri
+## 🔧 Build Parameters
 
-- `--onefile`: Tek exe dosyası oluştur
-- `--windowed`: Konsol penceresi gösterme
-- `--icon=nike.ico`: Uygulama ikonu
-- `--name="DM Cleaner"`: Exe dosya adı
+- `--onefile`: Create a single exe file
+- `--windowed`: Don't show console window
+- `--icon=nike.ico`: Application icon
+- `--name="DM Cleaner"`: Exe file name
 
-## 📊 Çıktı
+## 📊 Output
 
-Build tamamlandıktan sonra:
-- `dist/DM Cleaner.exe` - Ana exe dosyası
-- `DM Cleaner.exe` - Kopyalanmış exe dosyası (ana klasörde)
+After build completion:
+- `dist/DM Cleaner.exe` - Main exe file
+- `DM Cleaner.exe` - Copied exe file (in main folder)
 
-## ⚠️ Sorun Giderme
+## ⚠️ Troubleshooting
 
-### PyInstaller kurulum hatası
+### PyInstaller installation error
 ```bash
 pip install --upgrade pip
 pip install pyinstaller
 ```
 
-### Modül bulunamadı hatası
+### Module not found error
 ```bash
 pip install -r requirements.txt
 ```
 
-### EXE çalışmıyor
-- Windows Defender'ı kontrol edin
-- Antivirus yazılımını geçici olarak kapatın
-- Yönetici olarak çalıştırmayı deneyin
+### EXE not working
+- Check Windows Defender
+- Temporarily disable antivirus software
+- Try running as administrator
 
-## 🎯 Sonuç
+## 🎯 Result
 
-Build başarılı olduğunda `DM Cleaner.exe` dosyasını çift tıklayarak uygulamayı çalıştırabilirsiniz. Bu exe dosyası bağımsız olarak çalışır ve Python kurulumu gerektirmez.
-
+When the build is successful, you can run the application by double-clicking the `DM Cleaner.exe` file. This exe file runs independently and does not require Python installation.
