@@ -1,4 +1,0 @@
-PyQt6
-pycryptodome
-aiohttp
-pywin32 
