@@ -99,7 +99,7 @@ class DiscordWorker(QThread):
             try:
                 async with session.get("https://discord.com/api/v9/users/@me/channels", headers=headers) as resp:
                     if resp.status != 200:
-                        self.error_occurred.emit(f"DM listesi alınamadı: HTTP {resp.status}")
+                        self.error_occurred.emit(f"Could not get DM list: HTTP {resp.status}")
                         return
                     
                     channels = await resp.json()

@@ -33,8 +33,8 @@ class SplashScreen(QSplashScreen):
         self.progress.setValue(0)
         self.progress.setMaximum(100)
         
-        # Yükleniyor metni
-        self.loading_label = QLabel("Yükleniyor...")
+        # Loading text
+        self.loading_label = QLabel("Loading...")
         self.loading_label.setObjectName("loadingLabel")
         self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
@@ -110,17 +110,17 @@ class SplashScreen(QSplashScreen):
         self.progress_value += 1
         self.progress.setValue(self.progress_value)
         
-        # Yükleme mesajlarını güncelle
+        # Update loading messages
         if self.progress_value <= 30:
-            self.loading_label.setText("Arayüz hazırlanıyor...")
+            self.loading_label.setText("Preparing interface...")
         elif self.progress_value <= 60:
-            self.loading_label.setText("Bileşenler yükleniyor...")
+            self.loading_label.setText("Loading components...")
         elif self.progress_value <= 90:
-            self.loading_label.setText("Son hazırlıklar yapılıyor...")
+            self.loading_label.setText("Final preparations...")
         else:
-            self.loading_label.setText("Başlatılıyor...")
+            self.loading_label.setText("Starting...")
         
-        # Yükleme tamamlandığında
+        # When loading is completed
         if self.progress_value >= 100:
             self.timer.stop()
             # Splash'ı kapatmadan önce LoginWindow'u QTimer.singleShot ile aç

@@ -498,7 +498,7 @@ class LoginWindow(QWidget):
     def login(self):
         token = self.token_input.text().strip()
         if not token:
-            QMessageBox.warning(self, "Hata", "Lütfen bir token girin veya listeden seçin.")
+            QMessageBox.warning(self, "Error", "Please enter a token or select from the list.")
             return
         # Token ile ana pencereyi başlat
         self.hide()
@@ -521,20 +521,20 @@ class LoginWindow(QWidget):
             
             # Aktiviteyi ayarla
             rpc.update(
-                details="DM Cleaner Açık",
-                state="DM listesi yükleniyor...",
+                details="DM Cleaner Open",
+                state="Loading DM list...",
                 large_image="cover",
-                large_text="DM Cleaner - Mesaj Temizleme Aracı",
+                large_text="DM Cleaner - Message Cleaning Tool",
                 start=int(__import__('time').time())
             )
-            print("Discord Rich Presence başlatıldı")
+            print("Discord Rich Presence started")
             
             # Ana pencereye RPC referansını kaydet
             self.main_window.discord_rpc = rpc
             self.main_window.rpc_connected = True
             
         except Exception as e:
-            print(f"Discord RPC başlatılamadı: {e}")
+            print(f"Discord RPC could not be started: {e}")
             self.main_window.rpc_connected = False
 
     def show_tokens(self):
