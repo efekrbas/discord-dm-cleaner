@@ -34,11 +34,6 @@ A modern, user-friendly Discord DM (Direct Message) cleaning tool with a beautif
    ```bash
    pip install -r requirements.txt
    ```
-   
-   **Note:** The `requirements.txt` may list PyQt5, but this project uses PyQt6. Install PyQt6 manually if needed:
-   ```bash
-   pip install PyQt6 pycryptodome aiohttp pywin32 pypresence pyinstaller
-   ```
 
 3. **Run the application:**
    ```bash
