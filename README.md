@@ -26,8 +26,8 @@ A modern, user-friendly Discord DM (Direct Message) cleaning tool with a beautif
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/efekrbas/dm-cleaner.git
-   cd dm-cleaner
+   git clone https://github.com/efekrbas/discord-dm-cleaner.git
+   cd discord-dm-cleaner
    ```
 
 2. **Install dependencies:**
