@@ -10,8 +10,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QPushButton, QListWidget, QLabel, 
                             QProgressBar, QMessageBox, QFrame, QStyle, QLineEdit,
                             QListWidgetItem)
-from PyQt6.QtCore import QThread, pyqtSignal, Qt, QSize, QTimer
-from PyQt6.QtGui import QPalette, QColor, QIcon, QPixmap, QImage, QFont
+from PyQt6.QtCore import QThread, pyqtSignal, Qt, QSize, QTimer, QRect, QPoint, QByteArray, QBuffer, QIODevice, QRectF, QPointF
+from PyQt6.QtGui import QPalette, QColor, QIcon, QPixmap, QImage, QFont, QPainter, QBrush, QPen, QPainterPath
+import io
+import gc
 from Crypto.Cipher import AES
 
 # --- DiscordMessageManager and get_discord_token moved from main.pyw ---
@@ -69,23 +71,159 @@ class DiscordWorker(QThread):
     async def get_token(self):
         return self.token
 
-    async def get_avatar(self, user_id, avatar_id):
-        if not avatar_id or not self._session:
+    async def get_composite_avatar(self, recipients):
+        if not recipients or not self._session:
             return None
         
-        # Eğer user_id varsa kullanıcı avatarı, yoksa grup ikonu
+        try:
+            # Take up to 4 recipients
+            target_recipients = recipients[:4]
+            avatars = []
+            
+            for recipient in target_recipients:
+                if not isinstance(recipient, dict):
+                    continue
+                user_id = recipient.get('id')
+                avatar_id = recipient.get('avatar')
+                discriminator = recipient.get('discriminator')
+                
+                # Fetch avatar data
+                avatar_data = await self.get_avatar(user_id, avatar_id, discriminator)
+                if avatar_data:
+                    img = QImage()
+                    img.loadFromData(avatar_data)
+                    # Resize to standard size for processing (e.g. 64x64)
+                    if not img.isNull():
+                        avatars.append(img.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            
+            if not avatars:
+                # If no avatars found (all failed), fallback to default blue avatar
+                # This ensures we don't return None and show empty square
+                default_data = await self.get_avatar("0", None, "0") # Force default 0
+                if default_data:
+                     return default_data
+                return None
+                
+            # Create composite image (128x128 canvas)
+            size = 128
+            final_image = QImage(size, size, QImage.Format.Format_ARGB32)
+            final_image.fill(Qt.GlobalColor.transparent)
+            
+            painter = QPainter(final_image)
+            try:
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                
+                count = len(avatars)
+                
+                if count == 1:
+                    # Should normally not happen for group, but handled
+                    painter.drawImage(QRectF(0, 0, size, size), avatars[0])
+                elif count == 2:
+                    # Discord Style: Two overlapping circles
+                    # Avatar 1: Top Left (Background)
+                    rect1 = QRectF(0, 0, size*0.66, size*0.66)
+                    path1 = QPainterPath()
+                    path1.addEllipse(rect1)
+                    
+                    painter.save()
+                    painter.setClipPath(path1)
+                    painter.drawImage(rect1, avatars[0])
+                    painter.restore()
+                    
+                    # Avatar 2: Bottom Right (Foreground)
+                    rect2 = QRectF(size*0.34, size*0.34, size*0.66, size*0.66)
+                    
+                    # Draw "Border" (Cutout)
+                    border_radius = (size * 0.66) / 2 + (size * 0.05)
+                    path_border = QPainterPath()
+                    path_border.addEllipse(rect2.center(), border_radius, border_radius)
+                    
+                    painter.save()
+                    painter.setClipPath(path_border)
+                    painter.setBrush(QColor("#2C2F33")) # Discord Dark BG
+                    painter.setPen(Qt.PenStyle.NoPen)
+                    painter.drawRect(QRectF(0, 0, size, size))
+                    painter.restore()
+                    
+                    # Draw Avatar 2
+                    path2 = QPainterPath()
+                    path2.addEllipse(rect2)
+                    
+                    painter.save()
+                    painter.setClipPath(path2)
+                    painter.drawImage(rect2, avatars[1])
+                    painter.restore()
+                    
+                elif count == 3:
+                     # 1 Left Half, 2 Right Quarters
+                     painter.drawImage(QRectF(0, 0, size/2, size), avatars[0])
+                     painter.drawImage(QRectF(size/2, 0, size/2, size/2), avatars[1])
+                     painter.drawImage(QRectF(size/2, size/2, size/2, size/2), avatars[2])
+                     
+                elif count >= 4:
+                     # 2x2 Grid
+                     painter.drawImage(QRectF(0, 0, size/2, size/2), avatars[0])
+                     painter.drawImage(QRectF(size/2, 0, size/2, size/2), avatars[1])
+                     painter.drawImage(QRectF(0, size/2, size/2, size/2), avatars[2])
+                     painter.drawImage(QRectF(size/2, size/2, size/2, size/2), avatars[3])
+
+            finally:
+                painter.end()
+                del painter
+
+            # Convert QImage to bytes (PNG)
+            
+            # Convert QImage to bytes (PNG)
+            byte_array = QByteArray()
+            buffer = QBuffer(byte_array)
+            buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+            final_image.save(buffer, "PNG")
+            return byte_array.data()
+        except Exception as e:
+            print(f"Error creating composite avatar: {e}")
+            return None
+
+    async def get_avatar(self, user_id, avatar_id, discriminator=None, channel_id=None):
+        if not self._session:
+            return None
+            
+        url = None
         if user_id:
-            url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_id}.png?size=32"
-        else:
-            # Grup sohbeti ikonu için farklı URL formatı
-            url = f"https://cdn.discordapp.com/icons/{avatar_id}.png?size=32"
+            if avatar_id:
+                # Custom user avatar
+                url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_id}.png?size=128"
+            else:
+                # Default avatar
+                try:
+                    if discriminator and str(discriminator) != "0":
+                         index = int(discriminator) % 5
+                    else:
+                         index = (int(user_id) >> 22) % 6
+                    url = f"https://cdn.discordapp.com/embed/avatars/{index}.png"
+                except:
+                    return None
+        elif avatar_id and channel_id:
+             # Group icon (Group DMs use channel-icons endpoint)
+             url = f"https://cdn.discordapp.com/channel-icons/{channel_id}/{avatar_id}.png?size=128"
         
+        if not url:
+            # If no URL generated (e.g. group with no icon), return None (or could return a default group icon)
+            return None
+            
         try:
             async with self._session.get(url) as resp:
                 if resp.status == 200:
                     return await resp.read()
+                elif resp.status == 404 and user_id and avatar_id:
+                    # Fallback to default avatar if custom avatar is missing
+                    return await self.get_avatar(user_id, None, discriminator)
         except Exception as e:
-            pass
+            # Also fallback on connection error if custom avatar
+             if user_id and avatar_id:
+                 try:
+                     return await self.get_avatar(user_id, None, discriminator)
+                 except:
+                     pass
         return None
 
     async def get_dm_channels(self):
@@ -116,62 +254,78 @@ class DiscordWorker(QThread):
                     
                     dm_list = []
                     for idx, channel in enumerate(dm_channels, 1):
-                        self.dm_loading_progress.emit(idx, total_channels)
-                        
-                        # Determine username based on channel type
-                        username = None
-                        user_id = None
-                        avatar_id = None
-                        
-                        if channel["type"] == 1:  # One-on-one DM
-                            if "recipients" in channel and len(channel["recipients"]) > 0:
-                                recipient = channel["recipients"][0]
-                                # Check global_name first, use username if not available
-                                username = recipient.get('global_name') or recipient.get('username', 'Unknown User')
-                                user_id = recipient.get("id")
-                                avatar_id = recipient.get("avatar")
-                        elif channel["type"] == 3:  # Group chat
-                            # Check name field for group chat
-                            username = channel.get("name")
-                            if not username:
-                                # If name doesn't exist, create group name from recipients
-                                if "recipients" in channel and len(channel["recipients"]) > 0:
-                                    recipient_names = [r.get('global_name') or r.get('username', 'Unknown') for r in channel["recipients"][:3]]
-                                    username = f"Group: {', '.join(recipient_names)}"
-                                    if len(channel["recipients"]) > 3:
-                                        username += f" +{len(channel['recipients']) - 3} more"
-                                else:
-                                    username = "Unknown Group"
+                        try:
+                            self.dm_loading_progress.emit(idx, total_channels)
+                            
+                            # Determine username based on channel type
+                            username = None
                             user_id = None
-                            avatar_id = channel.get("icon")
-                        elif channel["type"] == 0 and "recipients" in channel:  # Private DM channel
-                            if len(channel["recipients"]) == 1:
-                                recipient = channel["recipients"][0]
-                                # Check global_name first, use username if not available
-                                username = recipient.get('global_name') or recipient.get('username', 'Unknown User')
-                                user_id = recipient.get("id")
-                                avatar_id = recipient.get("avatar")
-                            else:
-                                username = channel.get("name", "Group Chat")
+                            avatar_id = None
+                            
+                            if channel["type"] == 1:  # One-on-one DM
+                                if "recipients" in channel and len(channel["recipients"]) > 0:
+                                    recipient = channel["recipients"][0]
+                                    # Check global_name first, use username if not available
+                                    username = recipient.get('global_name') or recipient.get('username', 'Unknown User')
+                                    user_id = recipient.get("id")
+                                    avatar_id = recipient.get("avatar")
+                            elif channel["type"] == 3:  # Group chat
+                                # Check name field for group chat
+                                username = channel.get("name")
+                                if not username:
+                                    # If name doesn't exist, create group name from recipients
+                                    if "recipients" in channel and len(channel["recipients"]) > 0:
+                                        recipient_names = [r.get('global_name') or r.get('username', 'Unknown') for r in channel["recipients"][:3]]
+                                        username = f"Group: {', '.join(recipient_names)}"
+                                        if len(channel["recipients"]) > 3:
+                                            username += f" +{len(channel['recipients']) - 3} more"
+                                    else:
+                                        username = "Unknown Group"
                                 user_id = None
                                 avatar_id = channel.get("icon")
-                        
-                        # Assign default value if username is None
-                        if username is None:
-                            username = "Unknown Channel"
-                        
-                        avatar_task = asyncio.create_task(
-                            self.get_avatar(user_id, avatar_id) if user_id and avatar_id else asyncio.sleep(0)
-                        )
-                        
-                        dm_list.append({
-                            'username': username,
-                            'id': channel['id'],
-                            'user_id': user_id,  # Kullanıcı ID'sini de kaydet
-                            'avatar': await avatar_task if user_id and avatar_id else None,
-                            'type': channel["type"],
-                            'last_message_id': channel.get('last_message_id', '0')
-                        })
+                            elif channel["type"] == 0 and "recipients" in channel:  # Private DM channel
+                                if len(channel["recipients"]) == 1:
+                                    recipient = channel["recipients"][0]
+                                    # Check global_name first, use username if not available
+                                    username = recipient.get('global_name') or recipient.get('username', 'Unknown User')
+                                    user_id = recipient.get("id")
+                                    avatar_id = recipient.get("avatar")
+                                else:
+                                    username = channel.get("name", "Group Chat")
+                                    user_id = None
+                                    avatar_id = channel.get("icon")
+                            
+                            # Assign default value if username is None
+                            if username is None:
+                                username = "Unknown Channel"
+                            
+                            # Always try to get avatar (custom or default) if user_id exists
+                            avatar_task = asyncio.create_task(
+                                self.get_avatar(user_id, avatar_id, recipient.get("discriminator")) if user_id else (
+                                    self.get_avatar(None, avatar_id, channel_id=channel["id"]) if avatar_id else (
+                                        self.get_composite_avatar(channel.get("recipients", [])) if channel["type"] == 3 else asyncio.sleep(0)
+                                    )
+                                )
+                            )
+                            
+                            
+                            dm_list.append({
+                                'username': username,
+                                'id': channel['id'],
+                                'user_id': user_id,  # Kullanıcı ID'sini de kaydet
+                                'avatar': await avatar_task if (user_id or avatar_id or channel["type"] == 3) else None,
+                                'type': channel["type"],
+                                'last_message_id': channel.get('last_message_id', '0')
+                            })
+                            
+                            # Add delay to prevent UI freeze and resource exhaustion
+                            await asyncio.sleep(0.05)
+                            if idx % 10 == 0:
+                                gc.collect()
+                                
+                        except Exception as e:
+                            print(f"Error processing channel {channel.get('id', 'unknown')}: {e}")
+                            continue
                     
                     # Discord'daki DM düzenine göre sırala (son mesaj zamanına göre)
                     # last_message_id'ye göre sırala - büyük ID'ler daha yeni mesajları temsil eder
@@ -287,11 +441,14 @@ class DiscordWorker(QThread):
                         self.message_deleted.emit(f"DM Box {i}/{self.total_dm_count} - Deleting messages with {self.current_username}...")
                         
                         # Save message count in this DM
-                        messages_before = self.deleted_count
                         await self.delete_messages(channel["id"])
-                        messages_deleted_in_this_dm = self.deleted_count - messages_before
+                        messages_deleted_in_this_dm = self.deleted_count
+                        
                         self.completed_dms += 1
-                        self.message_deleted.emit(f"✓ {messages_deleted_in_this_dm} messages deleted with {self.current_username}.")
+                        self.total_deleted += messages_deleted_in_this_dm
+                        
+                        if messages_deleted_in_this_dm > 0:
+                            self.message_deleted.emit(f"✓ {messages_deleted_in_this_dm} messages deleted with {self.current_username}.")
                         
                         if not self._is_running:
                             break
@@ -338,12 +495,15 @@ class DiscordWorker(QThread):
                             break
                         
                         messages = await resp.json()
+                        
                         if not messages:
                             self.message_deleted.emit("No more messages found in this DM.")
                             break
                         
                         # Calculate total message count
-                        total_messages = len([m for m in messages if m["author"]["id"] == user_id])
+                        my_messages = [m for m in messages if m["author"]["id"] == user_id]
+                        total_messages = len(my_messages)
+                        
                         current_progress = 0
                         
                         for msg in messages:
@@ -380,11 +540,10 @@ class DiscordWorker(QThread):
                                 
                                 # Check for system messages
                                 is_system_message = (
-                                    message_type != 0 or  # Not a normal message
-                                    (not content.strip() and not msg.get("attachments") and not msg.get("embeds") and not msg.get("sticker_items")) or  # Empty content, no file, embed or sticker
+                                    message_type not in [0, 19] or  # Allow Default(0), Reply(19)
+                                    (message_type == 0 and not content.strip() and not msg.get("attachments") and not msg.get("embeds") and not msg.get("sticker_items")) or  # Empty content checks for type 0
                                     msg.get("activity") or  # Has activity
-                                    msg.get("application") or  # Application message
-                                    is_call_message  # Call message
+                                    msg.get("application")  # Application message
                                 )
                                 
                                 # Poll messages are deletable
@@ -630,8 +789,8 @@ class DiscordMessageManager(QMainWindow):
             user_widget = UserListItem(dm['username'], dm['avatar'])
             item.setSizeHint(user_widget.sizeHint())
             
-            # Benzersiz key'i item'a kaydet
-            item.setData(Qt.ItemDataRole.UserRole, unique_key)
+            # Kanal ID'sini doğrudan item'a kaydet
+            item.setData(Qt.ItemDataRole.UserRole, dm['id'])
             
             self.dm_list.addItem(item)
             self.dm_list.setItemWidget(item, user_widget)
@@ -669,17 +828,16 @@ class DiscordMessageManager(QMainWindow):
             dialog.button(QMessageBox.StandardButton.Ok).setText("OK")
             dialog.exec()
             return
-        # Get unique key from item
-        unique_key = current_item.data(Qt.ItemDataRole.UserRole)
-        if not unique_key or unique_key not in self.dm_channels:
+        # Get channel_id from item
+        channel_id = current_item.data(Qt.ItemDataRole.UserRole)
+        if not channel_id:
             dialog = ModernMessageBox(self)
             dialog.setWindowTitle("Warning")
-            dialog.setText("Selected user's DM channel not found!")
+            dialog.setText("Channel ID not found!")
             dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
             dialog.button(QMessageBox.StandardButton.Ok).setText("OK")
             dialog.exec()
             return
-        channel_id = self.dm_channels[unique_key]
         username = widget.username_label.text()
         reply = show_confirmation_dialog(self, "Confirmation", f"All your messages with {username} will be deleted. Are you sure?")
         if reply == QMessageBox.StandardButton.Yes:
