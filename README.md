@@ -121,7 +121,7 @@ If automatic detection fails, you can manually enter your token in the login win
 </p>
 
 <p align="left">
-<img src="https://github.com/efekrbas/discord-dm-cleaner/blob/main/images/Ekran%20g%C3%B6r%C3%BCnt%C3%BCs%C3%BC%202025-11-30%20034710.png">
+<img src="https://github.com/efekrbas/discord-dm-cleaner/blob/main/images/Ekran%20görüntüsü%202025-11-30%2004425.png">
 </p>
 
 ## 🐛 Troubleshooting
