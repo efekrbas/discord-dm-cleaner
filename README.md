@@ -164,7 +164,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 👥 Credits
 
-**Developed by:** copief and Efe Kırbaş
+**Developed by:** Efe Kırbaş
 
 **Copyright © 2025**
 
