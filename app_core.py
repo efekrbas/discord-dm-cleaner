@@ -734,7 +734,7 @@ class DiscordMessageManager(QMainWindow):
         main_container.addLayout(right_panel, 60)
         layout.addLayout(main_container, 1)
         copyright_container = QHBoxLayout()
-        copyright_label = QLabel("Copyright © 2025 - Developed by copief and Efe Kırbaş")
+        copyright_label = QLabel("Copyright © 2025 - Developed by Efe Kırbaş")
         copyright_label.setStyleSheet("""
             QLabel {
                 color: rgba(114, 137, 218, 0.5);
