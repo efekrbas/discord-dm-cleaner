@@ -73,7 +73,13 @@ class TokenListDialog(QDialog):
                 async with session.get("https://discord.com/api/v9/users/@me", headers=headers) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        avatar_url = f"https://cdn.discordapp.com/avatars/{data['id']}/{data['avatar']}.png?size=64" if data.get('avatar') else None
+                        if data.get('avatar'):
+                            avatar_url = f"https://cdn.discordapp.com/avatars/{data['id']}/{data['avatar']}.png?size=64"
+                        else:
+                            # Varsayılan Discord avatarı kullan
+                            user_id = int(data['id'])
+                            default_avatar_index = (user_id >> 22) % 6
+                            avatar_url = f"https://cdn.discordapp.com/embed/avatars/{default_avatar_index}.png"
                         avatar_data = None
                         if avatar_url:
                             async with session.get(avatar_url) as avatar_resp:
@@ -471,7 +477,13 @@ class LoginWindow(QWidget):
                 async with session.get("https://discord.com/api/v9/users/@me", headers=headers) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        avatar_url = f"https://cdn.discordapp.com/avatars/{data['id']}/{data['avatar']}.png?size=64" if data.get('avatar') else None
+                        if data.get('avatar'):
+                            avatar_url = f"https://cdn.discordapp.com/avatars/{data['id']}/{data['avatar']}.png?size=64"
+                        else:
+                            # Varsayılan Discord avatarı kullan
+                            user_id = int(data['id'])
+                            default_avatar_index = (user_id >> 22) % 6
+                            avatar_url = f"https://cdn.discordapp.com/embed/avatars/{default_avatar_index}.png"
                         avatar_data = None
                         if avatar_url:
                             async with session.get(avatar_url) as avatar_resp:
