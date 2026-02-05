@@ -13,7 +13,6 @@ A modern, user-friendly Discord DM (Direct Message) cleaning tool with a beautif
 - 🔐 **Auto Token Detection** - Automatically detects and uses your Discord token
 - 🎮 **Discord Rich Presence** - Shows your activity on Discord
 - ⚡ **Fast & Efficient** - Optimized deletion process with rate limit handling
-- 🛡️ **Safe Operation** - Only deletes your own messages, respects system messages
 
 ## 📋 Requirements
 
