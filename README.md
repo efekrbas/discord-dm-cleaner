@@ -118,9 +118,6 @@ If automatic detection fails, you can manually enter your token in the login win
 <p align="left">
   <img src="images/richpresence1.png" alt="Rich Presence 1">
 </p>
-<p align="left">
-  <img src="images/richpresence2.png" alt="Rich Presence 2">
-</p>
 
 ## 🐛 Troubleshooting
 
