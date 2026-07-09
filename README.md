@@ -1,4 +1,4 @@
-# <img src="https://raw.githubusercontent.com/efekrbas/discord-dm-cleaner/refs/heads/main/images/app_icon.ico" width="32" height="32" align="center"> Discord DM Cleaner
+# <img src="images/app_icon.png" width="32" height="32" align="center"> Discord DM Cleaner
 
 A modern, user-friendly Discord DM (Direct Message) cleaning tool with a beautiful GUI interface. Delete your Discord messages efficiently and safely.
 
