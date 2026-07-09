@@ -27,7 +27,7 @@ def main():
     print("=" * 50)
     
     # Gerekli dosyaları kontrol et
-    required_files = ['main.pyw', 'app_core.py', 'nike.ico']
+    required_files = ['main.pyw', 'app_core.py', 'app_icon.ico']
     missing_files = [f for f in required_files if not os.path.exists(f)]
     
     if missing_files:
@@ -50,7 +50,7 @@ def main():
         shutil.rmtree("dist")
     
     # EXE oluştur
-    build_command = "pyinstaller --onefile --windowed --icon=nike.ico --name=\"DM Cleaner\" main.pyw"
+    build_command = "pyinstaller --onefile --windowed --icon=app_icon.ico --add-data=\"images;images\" --name=\"DM Cleaner\" main.pyw"
     
     if not run_command(build_command, "EXE dosyası oluşturma"):
         return False

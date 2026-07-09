@@ -508,7 +508,7 @@ class LoginWindow(QWidget):
             self.token_input.setText(token)
 
     def login(self):
-        token = self.token_input.text().strip()
+        token = self.token_input.text().strip().strip('"').strip("'")
         if not token:
             QMessageBox.warning(self, "Error", "Please enter a token or select from the list.")
             return

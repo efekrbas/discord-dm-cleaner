@@ -31,7 +31,7 @@ if exist __pycache__ rmdir /s /q __pycache__
 
 echo.
 echo [3/4] EXE dosyası oluşturuluyor...
-pyinstaller --onefile --windowed --icon=nike.ico --name="DM Cleaner" main.pyw
+pyinstaller --onefile --windowed --icon=app_icon.ico --add-data="images;images" --name="DM Cleaner" main.pyw
 if %errorlevel% neq 0 (
     echo HATA: EXE oluşturma başarısız!
     pause

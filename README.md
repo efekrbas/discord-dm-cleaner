@@ -1,4 +1,4 @@
-# Discord DM Cleaner
+# <img src="https://raw.githubusercontent.com/efekrbas/discord-dm-cleaner/refs/heads/main/images/app_icon.ico" width="32" height="32" align="center"> Discord DM Cleaner
 
 A modern, user-friendly Discord DM (Direct Message) cleaning tool with a beautiful GUI interface. Delete your Discord messages efficiently and safely.
 
@@ -113,14 +113,13 @@ If automatic detection fails, you can manually enter your token in the login win
 ## Images
 
 <p align="left">
-  <img src="https://github.com/efekrbas/discord-dm-cleaner/blob/main/images/Ekran%20g%C3%B6r%C3%BCnt%C3%BCs%C3%BC%202025-11-30%20032339.png">
-  </p>
-  <p align="left">
-  <img src="https://github.com/efekrbas/discord-dm-cleaner/blob/main/images/Ekran%20g%C3%B6r%C3%BCnt%C3%BCs%C3%BC%202025-11-30%20033831.png">
+  <img src="images/gui.png" alt="GUI">
 </p>
-
 <p align="left">
-<img src="https://github.com/efekrbas/discord-dm-cleaner/blob/main/images/Ekran%20görüntüsü%202025-11-30%2004425.png">
+  <img src="images/richpresence1.png" alt="Rich Presence 1">
+</p>
+<p align="left">
+  <img src="images/richpresence2.png" alt="Rich Presence 2">
 </p>
 
 ## 🐛 Troubleshooting

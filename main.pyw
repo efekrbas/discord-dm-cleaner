@@ -898,6 +898,11 @@ class DiscordMessageManager(QMainWindow):
         super().__init__()
         self.setWindowTitle("DM Cleaner")
         self.setMinimumSize(1000, 700)
+        
+        # Set Application Icon
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "app_icon.png")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
         self.dm_channels = {}
         self.all_users = []
         self.token = None
@@ -1485,6 +1490,16 @@ async def get_discord_token():
 
 def main():
     app = QApplication(sys.argv)
+    
+    # Set global application icon
+    if hasattr(sys, '_MEIPASS'):
+        icon_path = os.path.join(sys._MEIPASS, 'images', 'app_icon.png')
+    else:
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images', 'app_icon.png')
+    
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+        
     splash = SplashScreen()
     splash.show()
     sys.exit(app.exec())
